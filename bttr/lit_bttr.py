@@ -102,7 +102,7 @@ class LitBTTR(pl.LightningModule):
         out_hat = self(batch.imgs, batch.mask, tgt)
 
         loss = ce_loss(out_hat, out)
-        self.log("train_loss", loss, on_step=False, on_epoch=True, sync_dist=True)
+        self.log("train_loss", loss, on_step=False, on_epoch=True, sync_dist=True, batch_size=len(batch))
 
         return loss
 
@@ -118,20 +118,21 @@ class LitBTTR(pl.LightningModule):
             on_epoch=True,
             prog_bar=True,
             sync_dist=True,
+            batch_size=len(batch)
         )
 
-        hyps = self.bttr.beam_search(
-            batch.imgs, batch.mask, self.hparams.beam_size, self.hparams.max_len
-        )
-        best_hyp = max(hyps, key=lambda h: h.score / (len(h) ** self.hparams.alpha))
-
-        self.exprate_recorder(best_hyp.seq, batch.indices[0])
+        # accuracy out_hat vs out
+        mask = out != vocab.PAD_IDX
+        cer = (out_hat.argmax(-1) != out).masked_fill(~mask, 0).reshape(2, len(batch), -1).permute(1, 0, 2).flatten(1,2).sum(-1) / mask.reshape(2, len(batch), -1).permute(1, 0, 2).flatten(1,2).sum(-1)
+        seq_acc = (cer == 0.0).float().mean()
         self.log(
             "val_ExpRate",
-            self.exprate_recorder,
-            prog_bar=True,
+            seq_acc,
             on_step=False,
             on_epoch=True,
+            prog_bar=True,
+            sync_dist=True,
+            batch_size=len(batch)
         )
 
     def test_step(self, batch: Batch, _):

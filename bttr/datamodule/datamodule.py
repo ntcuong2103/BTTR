@@ -16,7 +16,7 @@ vocab = CROHMEVocab()
 
 Data = List[Tuple[str, Image.Image, List[str]]]
 
-MAX_SIZE = 32e4  # change here accroading to your GPU memory
+MAX_SIZE = 1e6  # change here according to your GPU memory
 
 # load data
 def data_iterator(
@@ -173,7 +173,7 @@ class CROHMEDatamodule(pl.LightningDataModule):
         with ZipFile(self.zipfile_path) as archive:
             if stage == "fit" or stage is None:
                 self.train_dataset = build_dataset(archive, "train", self.batch_size)
-                self.val_dataset = build_dataset(archive, self.test_year, 1)
+                self.val_dataset = build_dataset(archive, self.test_year, self.batch_size)
             if stage == "test" or stage is None:
                 self.test_dataset = build_dataset(archive, self.test_year, 1)
 
